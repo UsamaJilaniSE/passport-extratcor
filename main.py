@@ -1,37 +1,49 @@
-from fastapi import FastAPI
+from fastapi import FastAPI , File , UploadFile
 from typing import List, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.cloud import documentai_v1 as documentai
 import pandas as pd
 import json
+import shutil
+import os
 
 app = FastAPI()
 
 
-@app.get("/")
-async def root():
+@app.post("/")
+async def root(file:UploadFile=File(...)):
 
     PROJECT_ID = "model-finetuning"
     LOCATION = "us"  # Format is 'us' or 'eu'
     PROCESSOR_ID = "50bb661f94252acd"  # Create processor in Cloud Console
 
-    # The local file in your current working directory
-    FILE_PATH = "sample3.jpg"
-    # Refer to https://cloud.google.com/document-ai/docs/processors-list
-    # for supported file types
-    MIME_TYPE = "image/jpeg"
 
-    document = online_process(
-        project_id=PROJECT_ID,
-        location=LOCATION,
-        processor_id=PROCESSOR_ID,
-        file_path=FILE_PATH,
-        mime_type=MIME_TYPE,
-    )
-    passport_data =extract_types_and_mention_text(document)
-    passport_data_final = convert_dict_format(passport_data)
-    return passport_data_final
+    if file:
+
+        file_path = file.filename
+        with open(file_path,"wb") as buffer:
+            shutil.copyfileobj(file.file,buffer)
+        
+
+        # The local file in your current working directory
+        FILE_PATH = file_path
+        # Refer to https://cloud.google.com/document-ai/docs/processors-list
+        # for supported file types
+        MIME_TYPE = "image/jpeg"
+
+        document = online_process(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            processor_id=PROCESSOR_ID,
+            file_path=FILE_PATH,
+            mime_type=MIME_TYPE,
+        )
+        passport_data =extract_types_and_mention_text(document)
+        passport_data_final = convert_dict_format(passport_data)
+        os.remove(file_path)
+        return passport_data_final
+    return "error"
 
 
 
